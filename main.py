@@ -1,38 +1,46 @@
 import random
 import sys
-
-import telepot
 import time
-from bs4 import BeautifulSoup
-import requests
 
-appartment_links = []
-counter = 0
-subscriber_list = set()
-page_url = 'https://www.immobilienscout24.de/Suche/S-2/Wohnung-Miete/Bayern/Muenchen/-/-/-/EURO--800,00'
+# Custom Classes
+import telebot
+from auxiliary import flatten
+from webcrawler import LinkManager
+
+# Page URLs with 'cheap' appartments
+page_url_immoscout = 'https://www.immobilienscout24.de/Suche/S-2/Wohnung-Miete/Bayern/Muenchen/-/-/-/EURO--800,00'
+prefix_url_immoscout = "https://www.immobilienscout24.de"
+page_url_immonet = 'https://www.immonet.de/immobiliensuche/sel.do?&sortby=0&suchart=1&objecttype=1&marketingtype=2&parentcat=1&toprice=800&city=121673&locationname=M%C3%BCnchen'
+prefix_url_immonet = "https://www.immonet.de"
+
+# Grab Bot Key & init Telebot
 BOT_KEY = sys.argv[1]
+bot = telebot.TelegramBot(BOT_KEY)
 
-bot = telepot.Bot(BOT_KEY)
-response = bot.getUpdates()
+# Init vars
+appartment_links = []
 
-for el in response:
-    subscriber_list.add(el['message']['chat']['id'])
+# Initialize Bot and start timer for timeout reminder
+start = time.time()
 
 while True:
 
-    print("New Scan... {}".format(counter))
-    counter = counter + 1
+    bot.print_status()
 
-    webpage = requests.get(page_url)
-    soup = BeautifulSoup(webpage.text, 'html.parser')
-    app_urls = soup.find_all("a", {"class" : "result-list-entry__brand-title-container"})
+    if bot.has_timeout(start):
+        start = time.time()
 
-    for app_url in app_urls:
-        link = 'https://www.immobilienscout24.de/' + app_url.attrs['href']
+    bot.update_subscribers()
+
+    immoscout = LinkManager(page_url_immoscout, prefix_url_immoscout, {"class": "result-list-entry__brand-title-container"})
+    immonet = LinkManager(page_url_immonet, prefix_url_immonet, {"class": "block ellipsis text-225"})
+
+    app_urls = immoscout.links + immonet.links
+    flatten(app_urls)
+
+    for link in app_urls:
         if not link in appartment_links:
             appartment_links.append(link)
-            for id in subscriber_list:
-                bot.sendMessage(id, link)
+            bot.send_messages(link)
 
     time.sleep(180 + (random.randint(0, 9) * 10))
-
