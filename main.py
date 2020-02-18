@@ -26,25 +26,34 @@ appartment_links = []
 start = time.time()
 
 while True:
+    try:
+        bot.print_status()
+    
+        if bot.has_timeout(start):
+            start = time.time()
+    
+        bot.update_subscribers()
+    
+        immoscout = LinkManager(page_url_immoscout, prefix_url_immoscout, {"class": "result-list-entry__brand-title-container"})
+        immonet = LinkManager(page_url_immonet, prefix_url_immonet, {"class": "block ellipsis text-225 text-default"})
+    
+        app_urls = immoscout.links + immonet.links
+        flatten(app_urls)
+    
+        for link in app_urls:
+            if not link in appartment_links:
+                print("Found new: {}".format(link))
+                appartment_links.append(link)
+                bot.send_messages(link)
+                time.sleep(3)
 
-    bot.print_status()
+        time.sleep(180 + (random.randint(0, 9) * 10))
 
-    if bot.has_timeout(start):
-        start = time.time()
-
-    bot.update_subscribers()
-
-    immoscout = LinkManager(page_url_immoscout, prefix_url_immoscout, {"class": "result-list-entry__brand-title-container"})
-    immonet = LinkManager(page_url_immonet, prefix_url_immonet, {"class": "block ellipsis text-225 text-default"})
-
-    app_urls = immoscout.links + immonet.links
-    flatten(app_urls)
-
-    for link in app_urls:
-        if not link in appartment_links:
-            print("Found new: {}".format(link))
-            appartment_links.append(link)
-            bot.send_messages(link)
-            time.sleep(3)
-
-    time.sleep(180 + (random.randint(0, 9) * 10))
+    except (KeyboardInterrupt, SystemExit):
+        # Allow to terminate the script using CTRL-C
+        raise
+    except Exception as e:
+        # Log exception and retry after a 60s delay
+        print(e)
+        time.sleep(60)
+ 
